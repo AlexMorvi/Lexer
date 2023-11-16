@@ -1,5 +1,7 @@
 package main
 
+//Se ha hecho un Commit de cada uno usando un vinculo entre Github y VSCode
+
 import (
 	"bufio"
 	"fmt"
