@@ -113,3 +113,80 @@ func (l *Lexer) Lex() (Position, Token, string) {
 		}
 	}
 }
+func (l *Lexer) resetPosition() {
+	l.pos.line++
+	l.pos.column = 0
+}
+
+func (l *Lexer) backup() {
+	if err := l.reader.UnreadRune(); err != nil {
+		panic(err)
+	}
+
+	l.pos.column--
+}
+
+// lexInt scans the input until the end of an integer and then returns the
+// literal.
+func (l *Lexer) lexInt() string {
+	var lit string
+	for {
+		r, _, err := l.reader.ReadRune()
+		if err != nil {
+			if err == io.EOF {
+				// at the end of the int
+				return lit
+			}
+		}
+
+		l.pos.column++
+		if unicode.IsDigit(r) {
+			lit = lit + string(r)
+		} else {
+			// scanned something not in the integer
+			l.backup()
+			return lit
+		}
+	}
+}
+
+// lexIdent scans the input until the end of an identifier and then returns the
+// literal.
+func (l *Lexer) lexIdent() string {
+	var lit string
+	for {
+		r, _, err := l.reader.ReadRune()
+		if err != nil {
+			if err == io.EOF {
+				// at the end of the identifier
+				return lit
+			}
+		}
+
+		l.pos.column++
+		if unicode.IsLetter(r) {
+			lit = lit + string(r)
+		} else {
+			// scanned something not in the identifier
+			l.backup()
+			return lit
+		}
+	}
+}
+
+func main() {
+	file, err := os.Open("input.test")
+	if err != nil {
+		panic(err)
+	}
+
+	lexer := NewLexer(file)
+	for {
+		pos, tok, lit := lexer.Lex()
+		if tok == EOF {
+			break
+		}
+
+		fmt.Printf("%d:%d\t%s\t%s\n", pos.line, pos.column, tok, lit)
+	}
+}
