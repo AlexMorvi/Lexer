@@ -1,7 +1,6 @@
 package main
 
-//Se ha hecho un Commit de cada uno usando un vinculo entre Github y VSCode
-
+//autor: De La Cruz Luis
 import (
 	"bufio"
 	"fmt"
@@ -17,7 +16,8 @@ const (
 	ILLEGAL
 	IDENT
 	INT
-	SEMI // ;
+	SEMI   // ;
+	STRING // "string"
 
 	// Infix ops
 	ADD // +
@@ -26,6 +26,10 @@ const (
 	DIV // /
 
 	ASSIGN // =
+
+	LPAREN // (
+	RPAREN // )
+
 )
 
 var tokens = []string{
@@ -34,36 +38,44 @@ var tokens = []string{
 	IDENT:   "IDENT",
 	INT:     "INT",
 	SEMI:    ";",
+	STRING:  "STRING",
 
 	// Infix ops
-	ADD: "+",
-	SUB: "-",
-	MUL: "*",
-	DIV: "/",
-
+	ADD:    "+",
+	SUB:    "-",
+	MUL:    "*",
+	DIV:    "/",
 	ASSIGN: "=",
+	LPAREN: "(",
+	RPAREN: ")",
 }
 
+// String returns the string representation of the token
 func (t Token) String() string {
 	return tokens[t]
 }
 
+// Position represents the position of a token in the input
 type Position struct {
 	line   int
 	column int
 }
 
+// Lexer is the lexer for the language
 type Lexer struct {
 	pos    Position
 	reader *bufio.Reader
 }
 
+// backup backs up the lexer by one rune
 func NewLexer(reader io.Reader) *Lexer {
 	return &Lexer{
 		pos:    Position{line: 1, column: 0},
 		reader: bufio.NewReader(reader),
 	}
 }
+
+// Lex returns the next token from the input
 func (l *Lexer) Lex() (Position, Token, string) {
 	// keep looping until we return a token
 	for {
@@ -96,6 +108,11 @@ func (l *Lexer) Lex() (Position, Token, string) {
 			return l.pos, DIV, "/"
 		case '=':
 			return l.pos, ASSIGN, "="
+		case '(':
+			return l.pos, LPAREN, "("
+		case ')':
+			return l.pos, RPAREN, ")"
+
 		default:
 			if unicode.IsSpace(r) {
 				continue // nothing to do here, just move on
@@ -111,12 +128,19 @@ func (l *Lexer) Lex() (Position, Token, string) {
 				l.backup()
 				lit := l.lexIdent()
 				return startPos, IDENT, lit
+			} else if r == '"' {
+				// backup and let lexString rescan the beginning of the string
+				startPos := l.pos
+				l.backup()
+				lit := l.lexString()
+				return startPos, STRING, lit
 			} else {
 				return l.pos, ILLEGAL, string(r)
 			}
 		}
 	}
 }
+
 func (l *Lexer) resetPosition() {
 	l.pos.line++
 	l.pos.column = 0
@@ -138,16 +162,17 @@ func (l *Lexer) lexInt() string {
 		r, _, err := l.reader.ReadRune()
 		if err != nil {
 			if err == io.EOF {
-				// at the end of the int
 				return lit
 			}
+
+			panic(err)
 		}
 
 		l.pos.column++
+
 		if unicode.IsDigit(r) {
-			lit = lit + string(r)
+			lit += string(r)
 		} else {
-			// scanned something not in the integer
 			l.backup()
 			return lit
 		}
@@ -162,18 +187,45 @@ func (l *Lexer) lexIdent() string {
 		r, _, err := l.reader.ReadRune()
 		if err != nil {
 			if err == io.EOF {
-				// at the end of the identifier
 				return lit
 			}
+
+			panic(err)
 		}
 
 		l.pos.column++
+
 		if unicode.IsLetter(r) {
-			lit = lit + string(r)
+			lit += string(r)
 		} else {
-			// scanned something not in the identifier
 			l.backup()
 			return lit
+		}
+	}
+}
+
+// lexString scans the input until the end of a string and then returns the
+// literal.
+func (l *Lexer) lexString() string {
+	var lit string
+	for {
+		r, _, err := l.reader.ReadRune()
+		if err != nil {
+			if err == io.EOF {
+				return lit
+			}
+
+			panic(err)
+		}
+
+		l.pos.column++
+
+		if r == '"' && len(lit) >= 1 {
+			return lit
+		} else {
+			if r != '"' {
+				lit += string(r)
+			}
 		}
 	}
 }
