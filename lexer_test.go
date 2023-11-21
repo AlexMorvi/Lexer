@@ -79,3 +79,4 @@ func TestIdentToken(t *testing.T) {
 		compareOutput(t, tokens, c.expected)
 	}
 }
+}
