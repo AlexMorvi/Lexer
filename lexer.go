@@ -9,6 +9,8 @@ import (
 	"unicode"
 )
 
+var adentro bool = true //booleano global para verificar si esta adentro del string
+
 type Token int
 
 const (
@@ -30,6 +32,8 @@ const (
 	LPAREN // (
 	RPAREN // )
 
+	COMILLAS //"
+
 )
 
 var tokens = []string{
@@ -41,13 +45,14 @@ var tokens = []string{
 	STRING:  "STRING",
 
 	// Infix ops
-	ADD:    "+",
-	SUB:    "-",
-	MUL:    "*",
-	DIV:    "/",
-	ASSIGN: "=",
-	LPAREN: "(",
-	RPAREN: ")",
+	ADD:      "+",
+	SUB:      "-",
+	MUL:      "*",
+	DIV:      "/",
+	ASSIGN:   "=",
+	LPAREN:   "(",
+	RPAREN:   ")",
+	COMILLAS: "\"",
 }
 
 // String returns the string representation of the token
@@ -78,8 +83,10 @@ func NewLexer(reader io.Reader) *Lexer {
 // Lex returns the next token from the input
 func (l *Lexer) Lex() (Position, Token, string) {
 	// keep looping until we return a token
+
 	for {
 		r, _, err := l.reader.ReadRune()
+
 		if err != nil {
 			if err == io.EOF {
 				return l.pos, EOF, ""
@@ -124,16 +131,32 @@ func (l *Lexer) Lex() (Position, Token, string) {
 				return startPos, INT, lit
 			} else if unicode.IsLetter(r) {
 				// backup and let lexIdent rescan the beginning of the ident
-				startPos := l.pos
-				l.backup()
-				lit := l.lexIdent()
-				return startPos, IDENT, lit
+				if adentro == false {
+					startPos := l.pos
+					l.backup()
+					lit := l.lexString()
+					adentro = true
+					l.backup()
+					return startPos, STRING, lit
+
+				} else {
+					startPos := l.pos
+					l.backup()
+					lit := l.lexIdent()
+					return startPos, IDENT, lit
+				}
+
 			} else if r == '"' {
+
 				// backup and let lexString rescan the beginning of the string
-				startPos := l.pos
-				l.backup()
-				lit := l.lexString()
-				return startPos, STRING, lit
+				if adentro {
+					adentro = false
+					return l.pos, COMILLAS, "\""
+				} else {
+					adentro = true
+					return l.pos, COMILLAS, "\""
+				}
+
 			} else {
 				return l.pos, ILLEGAL, string(r)
 			}
